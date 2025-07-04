@@ -24,6 +24,16 @@ const createSampleUser = async () => {
 
 createSampleUser();
 
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*", // or your frontend origin
+    methods: ["GET", "POST"],
+  },
+});
+
+socketController(io);
+
 const port = process.env.PORT || 5000;
 const app = express();
 app.listen(port, () => {
