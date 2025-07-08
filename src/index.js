@@ -6,6 +6,9 @@ import app from "./app.js";
 dotenv.config();
 connectDB();
 import User from "./models/users.js";
+import { createServer } from "http";
+import { Server } from "socket.io";
+import socketController from "./controlers/socket.controler.js";
 
 // const createSampleUser = async () => {
 //   try {
@@ -35,7 +38,7 @@ const io = new Server(httpServer, {
 socketController(io);
 
 const port = process.env.PORT || 5000;
-const app = express();
+
 app.listen(port, () => {
   console.log(`http://localhost:${port}`);
 });

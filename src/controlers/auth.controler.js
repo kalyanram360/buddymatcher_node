@@ -1,12 +1,12 @@
-import User from "../models/user.model.js";
+import User from "../models/users.js";
 import jwt from "jsonwebtoken";
 
 const login = async (req, res) => {
-  const { username, password } = req.body;
+  const { email, password } = req.body;
 
   try {
-    // Find user by username
-    const user = await User.findOne({ username });
+    // Find user by email
+    const user = await User.findOne({ email });
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
@@ -19,7 +19,7 @@ const login = async (req, res) => {
       token,
       user: {
         id: user._id,
-        username: user.username,
+        email: user.email,
       },
     });
   } catch (err) {
