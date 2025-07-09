@@ -1,5 +1,6 @@
 import User from "../models/users.js";
 import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
 
 const login = async (req, res) => {
   const { email, password } = req.body;
