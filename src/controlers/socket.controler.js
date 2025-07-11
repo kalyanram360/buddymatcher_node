@@ -28,6 +28,17 @@ export default function socketController(io) {
     socket.on("disconnect", () => {
       console.log("User disconnected:", socket.id);
       // TODO: remove from queues if needed
+
+      for (const [problemSlug, queue] of problemRooms.entries()) {
+        const index = queue.indexOf(socket.id);
+        if (index !== -1) {
+          queue.splice(index, 1);
+          if (queue.length === 0) {
+            problemRooms.delete(problemSlug);
+          }
+          break;
+        }
+      }
     });
   });
 }
