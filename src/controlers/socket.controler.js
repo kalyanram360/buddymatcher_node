@@ -5,7 +5,6 @@ export default function socketController(io) {
     console.log("User connected:", socket.id);
 
     socket.on("join-problem", (problemSlug) => {
-      // Match logic
       if (!problemRooms.has(problemSlug)) {
         problemRooms.set(problemSlug, []);
       }
@@ -19,26 +18,17 @@ export default function socketController(io) {
         io.to(user1).emit("matched", { roomId });
         io.to(user2).emit("matched", { roomId });
 
-        // Join room
         io.sockets.sockets.get(user1)?.join(roomId);
         io.sockets.sockets.get(user2)?.join(roomId);
       }
     });
 
+    socket.on("chat-message", ({ roomId, message }) => {
+      socket.to(roomId).emit("chat-message", message);
+    });
+
     socket.on("disconnect", () => {
       console.log("User disconnected:", socket.id);
-      // TODO: remove from queues if needed
-
-      for (const [problemSlug, queue] of problemRooms.entries()) {
-        const index = queue.indexOf(socket.id);
-        if (index !== -1) {
-          queue.splice(index, 1);
-          if (queue.length === 0) {
-            problemRooms.delete(problemSlug);
-          }
-          break;
-        }
-      }
     });
   });
 }

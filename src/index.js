@@ -1,44 +1,58 @@
+// import dotenv from "dotenv";
+// dotenv.config({ path: "./.env" });
+// import express from "express";
+// import connectDB from "./db/index.js";
+// import app from "./app.js";
+// dotenv.config();
+// connectDB();
+// import User from "./models/users.js";
+// import { createServer } from "http";
+// import { Server } from "socket.io";
+// import socketController from "./controlers/socket.controler.js";
+
+// const httpServer = createServer(app);
+// const io = new Server(httpServer, {
+//   cors: {
+//     origin: "*", // or your frontend origin
+//     methods: ["GET", "POST"],
+//   },
+// });
+
+// socketController(io);
+
+// const port = process.env.PORT || 5000;
+
+// app.listen(port, () => {
+//   console.log(`http://localhost:${port}`);
+// });
+
 import dotenv from "dotenv";
 dotenv.config({ path: "./.env" });
+
 import express from "express";
 import connectDB from "./db/index.js";
 import app from "./app.js";
-dotenv.config();
-connectDB();
-import User from "./models/users.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import socketController from "./controlers/socket.controler.js";
 
-// const createSampleUser = async () => {
-//   try {
-//     const user = await User.create({
-//       Fullname: "Kalyan Ram",
-//       username: "kalyanram360",
-//       email: "kalyan@example.com",
-//       password: "password123",
-//       Friends: ["friend1", "friend2"],
-//     });
-//     console.log("✅ User created:", user);
-//   } catch (err) {
-//     console.error("❌ Failed to create user:", err);
-//   }
-// };
+// Connect to MongoDB
+connectDB();
 
-// createSampleUser();
-
+// Create HTTP server and Socket.IO server
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: "*", // or your frontend origin
+    origin: "http://localhost:5173", // Match your React frontend
     methods: ["GET", "POST"],
   },
 });
 
+// Handle sockets
 socketController(io);
 
+// Start the HTTP server (with Socket.IO attached)
 const port = process.env.PORT || 5000;
-
-app.listen(port, () => {
-  console.log(`http://localhost:${port}`);
+httpServer.listen(port, () => {
+  console.log(`Server + Socket.IO running at http://localhost:${port}`);
 });
