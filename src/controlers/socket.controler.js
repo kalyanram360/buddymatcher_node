@@ -154,7 +154,9 @@
 
 // export default socketController;
 
+import removeProblemFromDB from "./removeproblem.comtroler.js";
 const waitingUsers = new Map(); // Map<problemId, socketId>
+const userToRoom = new Map(); // Map<socketId, roomName>
 
 const socketController = (io) => {
   io.on("connection", (socket) => {
@@ -178,26 +180,29 @@ const socketController = (io) => {
         return;
       }
 
+      //
       if (waitingUsers.has(problemId)) {
         const partnerSocketId = waitingUsers.get(problemId);
 
-        // Make sure we don't match user with themselves
         if (partnerSocketId === socket.id) {
           console.log(`Cannot match user ${socket.id} with themselves`);
           return;
         }
 
-        // Pair them up: create a private room
+        // Create private room
         socket.join(roomName);
         io.sockets.sockets.get(partnerSocketId)?.join(roomName);
 
-        // Notify both users they are matched
+        // ✅ Track room membership
+        userToRoom.set(socket.id, roomName);
+        userToRoom.set(partnerSocketId, roomName);
+
+        // Notify both users
         io.to(roomName).emit("match-found", { room: roomName });
         console.log(
           `Matched ${socket.id} with ${partnerSocketId} in ${roomName}`
         );
 
-        // Remove from waiting
         waitingUsers.delete(problemId);
       } else {
         // First person to join this problem — wait for a match
@@ -226,18 +231,60 @@ const socketController = (io) => {
       socket.to(room).emit("receive-message", messageData);
     });
 
+    // socket.on("disconnect", () => {
+    //   console.log(`User disconnected: ${socket.id}`);
+
+    //   // Notify partner
+    //   const room = userToRoom.get(socket.id);
+    //   if (room) {
+    //     socket.to(room).emit("partner-disconnected");
+    //     userToRoom.delete(socket.id);
+    //   }
+
+    //   // Clean up waitingUsers
+    //   for (const [problemId, sId] of waitingUsers) {
+    //     if (sId === socket.id) {
+    //       waitingUsers.delete(problemId);
+    //       console.log(
+    //         `Removed ${socket.id} from waiting list of problem ${problemId}`
+    //       );
+    //       break;
+    //     }
+    //   }
+    // });
     socket.on("disconnect", () => {
       console.log(`User disconnected: ${socket.id}`);
 
-      // Notify partner if user was in a room
-      const rooms = Array.from(socket.rooms).filter((room) =>
-        room.startsWith("room-")
-      );
-      rooms.forEach((room) => {
+      const room = userToRoom.get(socket.id);
+      if (room) {
+        // Notify partner
         socket.to(room).emit("partner-disconnected");
-      });
 
-      // Clean up waitingUsers in case someone leaves
+        // Remove the user from the tracking map
+        userToRoom.delete(socket.id);
+
+        // ✅ Find the partner and re-add them to waitingUsers
+        for (const [partnerSocketId, rName] of userToRoom.entries()) {
+          if (rName === room && partnerSocketId !== socket.id) {
+            // Extract the problemId from room name
+            const problemId = room.replace("room-", "");
+
+            console.log(
+              `Adding ${partnerSocketId} back to waiting list for problem ${problemId}`
+            );
+            waitingUsers.set(problemId, partnerSocketId);
+
+            // Clean their room association
+            userToRoom.delete(partnerSocketId);
+
+            // Optional: force them to leave the room too
+            io.sockets.sockets.get(partnerSocketId)?.leave(room);
+            break;
+          }
+        }
+      }
+
+      // Clean up waitingUsers
       for (const [problemId, sId] of waitingUsers) {
         if (sId === socket.id) {
           waitingUsers.delete(problemId);
