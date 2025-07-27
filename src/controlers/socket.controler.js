@@ -307,11 +307,10 @@ const socketController = (io) => {
       const problemId = socketToProblem.get(socket.id);
       const room = userToRoom.get(socket.id);
 
-      // Always try to decrement if this user had a problem
       if (problemId) {
         await removeProblemFromDB(problemId);
       } else if (room) {
-        // Try to extract problemId from room name like 'room-two-sum-1'
+        // Try extracting problemId from room name
         const roomParts = room.split("-");
         if (roomParts.length >= 3) {
           const extractedProblemId = roomParts.slice(1, -1).join("-");
@@ -322,17 +321,17 @@ const socketController = (io) => {
         }
       }
 
+      // Notify partner and re-add them to waiting list
       if (room) {
         socket.to(room).emit("partner-disconnected");
 
-        // Clean room data
+        // Clean this user’s mapping only
         userToRoom.delete(socket.id);
 
-        // Try to find partner in same room
+        // Check for partner
         for (const [partnerSocketId, rName] of userToRoom.entries()) {
           if (rName === room && partnerSocketId !== socket.id) {
             const partnerSocket = io.sockets.sockets.get(partnerSocketId);
-            userToRoom.delete(partnerSocketId);
 
             if (partnerSocket) {
               partnerSocket.leave(room);
@@ -340,10 +339,9 @@ const socketController = (io) => {
               const roomParts = room.split("-");
               if (roomParts.length >= 3) {
                 const roomProblemId = roomParts.slice(1, -1).join("-");
-
-                // Re-add to waiting list and restore problem mapping
                 waitingUsers.set(roomProblemId, partnerSocketId);
                 socketToProblem.set(partnerSocketId, roomProblemId);
+                // DO NOT delete partner’s userToRoom or socketToProblem!
               }
             }
             break;
@@ -351,7 +349,7 @@ const socketController = (io) => {
         }
       }
 
-      // If user was in waiting list, remove them
+      // Clean from waiting list
       for (const [pid, sId] of waitingUsers.entries()) {
         if (sId === socket.id) {
           waitingUsers.delete(pid);
@@ -362,7 +360,7 @@ const socketController = (io) => {
         }
       }
 
-      // Clean problem mapping last
+      // Clean only this socket’s data
       socketToProblem.delete(socket.id);
     });
   });
