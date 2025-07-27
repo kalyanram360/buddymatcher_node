@@ -239,6 +239,69 @@ const socketController = (io) => {
       socket.to(room).emit("receive-message", messageData);
     });
 
+    // socket.on("disconnect", async () => {
+    //   console.log(`User disconnected: ${socket.id}`);
+
+    //   const problemId = socketToProblem.get(socket.id);
+    //   if (problemId) {
+    //     await removeProblemFromDB(problemId);
+    //   }
+
+    //   const room = userToRoom.get(socket.id);
+    //   if (room) {
+    //     // Notify partner about disconnection
+    //     socket.to(room).emit("partner-disconnected");
+
+    //     // Remove the user from the tracking map
+    //     userToRoom.delete(socket.id);
+
+    //     // Find the partner and handle their state
+    //     for (const [partnerSocketId, rName] of userToRoom.entries()) {
+    //       if (rName === room && partnerSocketId !== socket.id) {
+    //         console.log(
+    //           `Partner ${partnerSocketId} found for disconnected user ${socket.id}`
+    //         );
+
+    //         // Clean their room association
+    //         userToRoom.delete(partnerSocketId);
+
+    //         // Force them to leave the room
+    //         const partnerSocket = io.sockets.sockets.get(partnerSocketId);
+    //         if (partnerSocket) {
+    //           partnerSocket.leave(room);
+
+    //           // Extract problemId from room name (format: room-problemId-roomNumber)
+    //           const roomParts = room.split("-");
+    //           if (roomParts.length >= 3) {
+    //             const roomProblemId = roomParts.slice(1, -1).join("-"); // Handle problemIds with dashes
+
+    //             // Add them back to waiting list so they can find a new partner
+    //             console.log(
+    //               `Adding ${partnerSocketId} back to waiting list for problem ${roomProblemId}`
+    //             );
+    //             waitingUsers.set(roomProblemId, partnerSocketId);
+    //           }
+    //         }
+    //         break;
+    //       }
+    //     }
+    //   }
+
+    //   // Clean up from waiting list
+    //   for (const [problemId, sId] of waitingUsers) {
+    //     if (sId === socket.id) {
+    //       waitingUsers.delete(problemId);
+    //       console.log(
+    //         `Removed ${socket.id} from waiting list of problem ${problemId}`
+    //       );
+    //       break;
+    //     }
+    //   }
+
+    //   // Clean up socket mappings
+    //   socketToProblem.delete(socket.id);
+    // });
+
     socket.on("disconnect", async () => {
       console.log(`User disconnected: ${socket.id}`);
 
@@ -280,6 +343,9 @@ const socketController = (io) => {
                   `Adding ${partnerSocketId} back to waiting list for problem ${roomProblemId}`
                 );
                 waitingUsers.set(roomProblemId, partnerSocketId);
+
+                // IMPORTANT: Update the partner's socketToProblem mapping to ensure proper cleanup
+                socketToProblem.set(partnerSocketId, roomProblemId);
               }
             }
             break;
