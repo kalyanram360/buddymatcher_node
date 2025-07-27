@@ -43,7 +43,7 @@ connectDB();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:5173", // Match your React frontend
+    origin: "*", // Match your React frontend
     methods: ["GET", "POST"],
   },
 });
