@@ -354,12 +354,33 @@ const socketController = (io) => {
       }
 
       // Clean up from waiting list
-      for (const [problemId, sId] of waitingUsers) {
-        if (sId === socket.id) {
-          waitingUsers.delete(problemId);
+      for (const [partnerSocketId, rName] of userToRoom.entries()) {
+        if (rName === room && partnerSocketId !== socket.id) {
           console.log(
-            `Removed ${socket.id} from waiting list of problem ${problemId}`
+            `Partner ${partnerSocketId} found for disconnected user ${socket.id}`
           );
+
+          userToRoom.delete(partnerSocketId);
+
+          const partnerSocket = io.sockets.sockets.get(partnerSocketId);
+          if (partnerSocket) {
+            partnerSocket.leave(room);
+
+            // Extract problemId from room name
+            const roomParts = room.split("-");
+            if (roomParts.length >= 3) {
+              const roomProblemId = roomParts.slice(1, -1).join("-");
+
+              // 👇 ADD THIS LINE — Decrement count for partner too
+              await removeProblemFromDB(roomProblemId);
+
+              // Add them back to waiting list
+              console.log(
+                `Adding ${partnerSocketId} back to waiting list for problem ${roomProblemId}`
+              );
+              waitingUsers.set(roomProblemId, partnerSocketId);
+            }
+          }
           break;
         }
       }
