@@ -345,8 +345,7 @@ const socketController = (io) => {
                 );
                 waitingUsers.set(roomProblemId, partnerSocketId);
 
-                // INCREMENT the count back since partner is still active and waiting
-                await addProblemToDB(roomProblemId);
+                // DON'T increment count - partner was already counted when they initially joined
               }
             }
             break;
