@@ -307,30 +307,33 @@ const socketController = (io) => {
       const problemId = socketToProblem.get(socket.id);
       const room = userToRoom.get(socket.id);
 
+      // Always try to decrement if this user had a problem
       if (problemId) {
-        // Always decrement here — this user is leaving
         await removeProblemFromDB(problemId);
+      } else if (room) {
+        // Try to extract problemId from room name like 'room-two-sum-1'
+        const roomParts = room.split("-");
+        if (roomParts.length >= 3) {
+          const extractedProblemId = roomParts.slice(1, -1).join("-");
+          console.log(
+            `Fallback: removing problem count using extracted ID: ${extractedProblemId}`
+          );
+          await removeProblemFromDB(extractedProblemId);
+        }
       }
 
       if (room) {
         socket.to(room).emit("partner-disconnected");
 
-        // Remove user from userToRoom
+        // Clean room data
         userToRoom.delete(socket.id);
 
-        // Find the partner still in the room
+        // Try to find partner in same room
         for (const [partnerSocketId, rName] of userToRoom.entries()) {
           if (rName === room && partnerSocketId !== socket.id) {
-            console.log(
-              `Partner ${partnerSocketId} found for disconnected user ${socket.id}`
-            );
-
             const partnerSocket = io.sockets.sockets.get(partnerSocketId);
-
-            // Remove partner's room tracking
             userToRoom.delete(partnerSocketId);
 
-            // Force them to leave the room
             if (partnerSocket) {
               partnerSocket.leave(room);
 
@@ -338,9 +341,9 @@ const socketController = (io) => {
               if (roomParts.length >= 3) {
                 const roomProblemId = roomParts.slice(1, -1).join("-");
 
-                // Add partner back to waiting list for re-match
+                // Re-add to waiting list and restore problem mapping
                 waitingUsers.set(roomProblemId, partnerSocketId);
-                socketToProblem.set(partnerSocketId, roomProblemId); // Make sure this stays set so future disconnect decrements again
+                socketToProblem.set(partnerSocketId, roomProblemId);
               }
             }
             break;
@@ -348,7 +351,7 @@ const socketController = (io) => {
         }
       }
 
-      // Clean up from waiting list
+      // If user was in waiting list, remove them
       for (const [pid, sId] of waitingUsers.entries()) {
         if (sId === socket.id) {
           waitingUsers.delete(pid);
@@ -359,7 +362,7 @@ const socketController = (io) => {
         }
       }
 
-      // Now safe to delete socket mapping
+      // Clean problem mapping last
       socketToProblem.delete(socket.id);
     });
   });
