@@ -6,6 +6,8 @@ const userSchema = new mongoose.Schema({
   Fullname: String,
   email: String,
   password: String,
+  avatar: String,
+
   Friends: {
     type: [String],
     default: [],
@@ -13,6 +15,14 @@ const userSchema = new mongoose.Schema({
 });
 
 // 🔐 Hash password before saving
+userSchema.pre("save", async function (next) {
+  //set avatar tohttps://avatar.iran.liara.run/username?username=[firstname+lastname]
+  if (!this.isModified("avatar")) {
+    this.avatar = `https://ui-avatars.com/api/?name=${this.Fullname}&background=6B7280&color=fff&size=48`;
+  }
+  next();
+});
+
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next(); // only hash if changed
   const salt = await bcrypt.genSalt(10); // 10 = salt rounds
