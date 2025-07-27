@@ -302,11 +302,11 @@ const socketController = (io) => {
     //   socketToProblem.delete(socket.id);
     // });
     ///////////////////////////
-
     socket.on("disconnect", async () => {
       console.log(`User disconnected: ${socket.id}`);
 
       const problemId = socketToProblem.get(socket.id);
+      // Only decrement count for the actually disconnecting user
       if (problemId) {
         await removeProblemFromDB(problemId);
       }
