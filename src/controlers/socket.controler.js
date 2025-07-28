@@ -304,48 +304,49 @@ const socketController = (io) => {
     socket.on("disconnect", async () => {
       console.log(`User disconnected: ${socket.id}`);
 
+      // STEP 1: ALWAYS decrement count for this user (they joined, so they must decrement)
       const problemId = socketToProblem.get(socket.id);
-      const room = userToRoom.get(socket.id);
-
-      let finalProblemId = null;
-
       if (problemId) {
-        finalProblemId = problemId;
-      } else if (room) {
-        // Extract problemId from room name
-        const roomParts = room.split("-");
-        if (roomParts.length >= 3) {
-          finalProblemId = roomParts.slice(1, -1).join("-");
-        }
+        console.log(
+          `Decrementing count for user ${socket.id} with problem ${problemId}`
+        );
+        await removeProblemFromDB(problemId);
       }
 
-      if (finalProblemId) {
-        await removeProblemFromDB(finalProblemId);
-      }
-
-      // Notify partner and re-add them to waiting list
+      // STEP 2: Handle room cleanup if user was in a room
+      const room = userToRoom.get(socket.id);
       if (room) {
+        console.log(`User ${socket.id} was in room ${room}`);
+
+        // Notify partner about disconnection
         socket.to(room).emit("partner-disconnected");
 
-        // Clean this user's mapping
+        // Remove this user from room tracking
         userToRoom.delete(socket.id);
 
-        // Check for partner
+        // Find and handle partner
         for (const [partnerSocketId, rName] of userToRoom.entries()) {
           if (rName === room && partnerSocketId !== socket.id) {
+            console.log(`Found partner ${partnerSocketId} in same room`);
+
             const partnerSocket = io.sockets.sockets.get(partnerSocketId);
-
             if (partnerSocket) {
+              // Remove partner from room
               partnerSocket.leave(room);
+              userToRoom.delete(partnerSocketId);
 
+              // Extract problemId from room name
               const roomParts = room.split("-");
               if (roomParts.length >= 3) {
                 const roomProblemId = roomParts.slice(1, -1).join("-");
-                waitingUsers.set(roomProblemId, partnerSocketId);
-                socketToProblem.set(partnerSocketId, roomProblemId);
 
-                // CRITICAL FIX: Clean partner's room mapping so they're marked as waiting, not in a room
-                userToRoom.delete(partnerSocketId);
+                // Put partner back in waiting list
+                waitingUsers.set(roomProblemId, partnerSocketId);
+                socketToProblem.set(partnerSocketId, roomProblemId); // Ensure proper mapping
+
+                console.log(
+                  `Partner ${partnerSocketId} moved back to waiting for problem ${roomProblemId}`
+                );
               }
             }
             break;
@@ -353,27 +354,21 @@ const socketController = (io) => {
         }
       }
 
-      // Clean from waiting list
+      // STEP 3: Clean up from waiting list (if user was waiting)
       for (const [pid, sId] of waitingUsers.entries()) {
         if (sId === socket.id) {
           waitingUsers.delete(pid);
           console.log(
             `Removed ${socket.id} from waiting list of problem ${pid}`
           );
-
-          // If we didn't decrement count yet (user was only in waiting list), do it now
-          if (!finalProblemId) {
-            console.log(
-              `Decrementing count for waiting user ${socket.id} with problem ${pid}`
-            );
-            await removeProblemFromDB(pid);
-          }
           break;
         }
       }
 
-      // Clean only this socket's data
+      // STEP 4: Clean up all mappings for this socket
       socketToProblem.delete(socket.id);
+
+      console.log(`Cleanup completed for user ${socket.id}`);
     });
   });
 };
