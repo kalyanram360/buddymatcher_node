@@ -307,18 +307,34 @@ const socketController = (io) => {
       const problemId = socketToProblem.get(socket.id);
       const room = userToRoom.get(socket.id);
 
+      // if (problemId) {
+      //   await removeProblemFromDB(problemId);
+      // } else if (room) {
+      //   // Try extracting problemId from room name
+      //   const roomParts = room.split("-");
+      //   if (roomParts.length >= 3) {
+      //     const extractedProblemId = roomParts.slice(1, -1).join("-");
+      //     console.log(
+      //       `Fallback: removing problem count using extracted ID: ${extractedProblemId}`
+      //     );
+      //     await removeProblemFromDB(extractedProblemId);
+      //   }
+      // }
+
+      let finalProblemId = null;
+
       if (problemId) {
-        await removeProblemFromDB(problemId);
+        finalProblemId = problemId;
       } else if (room) {
-        // Try extracting problemId from room name
+        // Extract problemId from room name
         const roomParts = room.split("-");
         if (roomParts.length >= 3) {
-          const extractedProblemId = roomParts.slice(1, -1).join("-");
-          console.log(
-            `Fallback: removing problem count using extracted ID: ${extractedProblemId}`
-          );
-          await removeProblemFromDB(extractedProblemId);
+          finalProblemId = roomParts.slice(1, -1).join("-");
         }
+      }
+
+      if (finalProblemId) {
+        await removeProblemFromDB(finalProblemId);
       }
 
       // Notify partner and re-add them to waiting list
