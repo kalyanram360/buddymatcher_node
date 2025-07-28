@@ -243,43 +243,43 @@ const socketController = (io) => {
     //   console.log(`User disconnected: ${socket.id}`);
 
     //   const problemId = socketToProblem.get(socket.id);
+    //   const room = userToRoom.get(socket.id);
+
     //   if (problemId) {
     //     await removeProblemFromDB(problemId);
+    //   } else if (room) {
+    //     // Try extracting problemId from room name
+    //     const roomParts = room.split("-");
+    //     if (roomParts.length >= 3) {
+    //       const extractedProblemId = roomParts.slice(1, -1).join("-");
+    //       console.log(
+    //         `Fallback: removing problem count using extracted ID: ${extractedProblemId}`
+    //       );
+    //       await removeProblemFromDB(extractedProblemId);
+    //     }
     //   }
 
-    //   const room = userToRoom.get(socket.id);
+    //   // Notify partner and re-add them to waiting list
     //   if (room) {
-    //     // Notify partner about disconnection
     //     socket.to(room).emit("partner-disconnected");
 
-    //     // Remove the user from the tracking map
+    //     // Clean this user’s mapping only
     //     userToRoom.delete(socket.id);
 
-    //     // Find the partner and handle their state
+    //     // Check for partner
     //     for (const [partnerSocketId, rName] of userToRoom.entries()) {
     //       if (rName === room && partnerSocketId !== socket.id) {
-    //         console.log(
-    //           `Partner ${partnerSocketId} found for disconnected user ${socket.id}`
-    //         );
-
-    //         // Clean their room association
-    //         userToRoom.delete(partnerSocketId);
-
-    //         // Force them to leave the room
     //         const partnerSocket = io.sockets.sockets.get(partnerSocketId);
+
     //         if (partnerSocket) {
     //           partnerSocket.leave(room);
 
-    //           // Extract problemId from room name (format: room-problemId-roomNumber)
     //           const roomParts = room.split("-");
     //           if (roomParts.length >= 3) {
-    //             const roomProblemId = roomParts.slice(1, -1).join("-"); // Handle problemIds with dashes
-
-    //             // Add them back to waiting list so they can find a new partner
-    //             console.log(
-    //               `Adding ${partnerSocketId} back to waiting list for problem ${roomProblemId}`
-    //             );
+    //             const roomProblemId = roomParts.slice(1, -1).join("-");
     //             waitingUsers.set(roomProblemId, partnerSocketId);
+    //             socketToProblem.set(partnerSocketId, roomProblemId);
+    //             // DO NOT delete partner’s userToRoom or socketToProblem!
     //           }
     //         }
     //         break;
@@ -287,18 +287,18 @@ const socketController = (io) => {
     //     }
     //   }
 
-    //   // Clean up from waiting list
-    //   for (const [problemId, sId] of waitingUsers) {
+    //   // Clean from waiting list
+    //   for (const [pid, sId] of waitingUsers.entries()) {
     //     if (sId === socket.id) {
-    //       waitingUsers.delete(problemId);
+    //       waitingUsers.delete(pid);
     //       console.log(
-    //         `Removed ${socket.id} from waiting list of problem ${problemId}`
+    //         `Removed ${socket.id} from waiting list of problem ${pid}`
     //       );
     //       break;
     //     }
     //   }
 
-    //   // Clean up socket mappings
+    //   // Clean only this socket’s data
     //   socketToProblem.delete(socket.id);
     // });
     socket.on("disconnect", async () => {
@@ -306,20 +306,6 @@ const socketController = (io) => {
 
       const problemId = socketToProblem.get(socket.id);
       const room = userToRoom.get(socket.id);
-
-      // if (problemId) {
-      //   await removeProblemFromDB(problemId);
-      // } else if (room) {
-      //   // Try extracting problemId from room name
-      //   const roomParts = room.split("-");
-      //   if (roomParts.length >= 3) {
-      //     const extractedProblemId = roomParts.slice(1, -1).join("-");
-      //     console.log(
-      //       `Fallback: removing problem count using extracted ID: ${extractedProblemId}`
-      //     );
-      //     await removeProblemFromDB(extractedProblemId);
-      //   }
-      // }
 
       let finalProblemId = null;
 
@@ -341,7 +327,7 @@ const socketController = (io) => {
       if (room) {
         socket.to(room).emit("partner-disconnected");
 
-        // Clean this user’s mapping only
+        // Clean this user's mapping
         userToRoom.delete(socket.id);
 
         // Check for partner
@@ -357,7 +343,9 @@ const socketController = (io) => {
                 const roomProblemId = roomParts.slice(1, -1).join("-");
                 waitingUsers.set(roomProblemId, partnerSocketId);
                 socketToProblem.set(partnerSocketId, roomProblemId);
-                // DO NOT delete partner’s userToRoom or socketToProblem!
+
+                // CRITICAL FIX: Clean partner's room mapping so they're marked as waiting, not in a room
+                userToRoom.delete(partnerSocketId);
               }
             }
             break;
@@ -376,7 +364,7 @@ const socketController = (io) => {
         }
       }
 
-      // Clean only this socket’s data
+      // Clean only this socket's data
       socketToProblem.delete(socket.id);
     });
   });
