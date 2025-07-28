@@ -360,6 +360,14 @@ const socketController = (io) => {
           console.log(
             `Removed ${socket.id} from waiting list of problem ${pid}`
           );
+
+          // If we didn't decrement count yet (user was only in waiting list), do it now
+          if (!finalProblemId) {
+            console.log(
+              `Decrementing count for waiting user ${socket.id} with problem ${pid}`
+            );
+            await removeProblemFromDB(pid);
+          }
           break;
         }
       }
